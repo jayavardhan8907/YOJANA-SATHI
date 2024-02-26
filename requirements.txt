@@ -9,7 +9,7 @@ tiktoken
 huggingface-hub
 pypdf
 llama-cpp-python
-PyPDF2==1.26.0
+fitz
 
 
 
