@@ -98,7 +98,7 @@ def main():
             os.remove(temp_file_path)
 
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=20)
-        text_chunks = text_splitter.split_texts(text)
+        text_chunks = text_splitter.split_documents(text)
 
         # Create embeddings
         embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", 
