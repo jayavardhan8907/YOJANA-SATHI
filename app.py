@@ -3,21 +3,22 @@ from streamlit_chat import message
 from langchain.chains import ConversationalRetrievalChain
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.llms import LlamaCpp
+from langchain.vectorstores import FAISS
 from langchain.memory import ConversationBufferMemory
 import requests
 import pdfplumber
 from io import BytesIO
-import faiss  # Import FAISS library
+import faiss  # Explicitly import faiss
 
 def initialize_session_state():
     if 'history' not in st.session_state:
         st.session_state['history'] = []
 
     if 'generated' not in st.session_state:
-        st.session_state['generated'] = ["Hello! Ask me anything about 🤗"]
+        st.session_state['generated'] = ["Hello! Ask me anything about "]
 
     if 'past' not in st.session_state:
-        st.session_state['past'] = ["Hey! 👋"]
+        st.session_state['past'] = ["Hey! "]
 
 def conversation_chat(query, chain, history):
     result = chain({"question": query, "chat_history": history})
@@ -29,9 +30,8 @@ def display_chat_history(chain):
     container = st.container()
 
     with container:
-        with st.form(key='my_form', clear_on_submit=True):
-            user_input = st.text_input("Question:", placeholder="Ask about your PDF", key='input')
-            submit_button = st.form_submit_button(label='Send')
+        user_input = st.text_input("Question:", placeholder="Ask about your PDF", key='input')
+        submit_button = st.form_submit_button(label='Send')
 
         if submit_button and user_input:
             with st.spinner('Generating response...'):
@@ -52,7 +52,7 @@ def create_conversational_chain(vector_store):
         streaming=True,
         model_path="mistral-7b-instruct-v0.1.Q4_K_M.gguf",
         temperature=0.75,
-        top_p=1,
+        top_p=1, 
         verbose=True,
         n_ctx=4096
     )
@@ -60,8 +60,8 @@ def create_conversational_chain(vector_store):
     memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
     chain = ConversationalRetrievalChain.from_llm(llm=llm, chain_type='stuff',
-                                                 retriever=vector_store.as_retriever(search_kwargs={"k": 2}),
-                                                 memory=memory)
+                                                retriever=vector_store.as_retriever(search_kwargs={"k": 2}),
+                                                memory=memory)
     return chain
 
 def main():
@@ -90,10 +90,12 @@ def main():
     text_chunks = [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
 
     # Create embeddings
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2",
-                                       model_kwargs={'device': 'cpu'})
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", 
+                                     model_kwargs={'device': 'cpu'})
 
     try:
+        # Create vector store directly using embeddings (no need for page_content)
+        vector_store = faiss.
         # Create vector store directly using embeddings (no need for page_content)
         vector_store = faiss.IndexFlatL2(len(embeddings[0]))  # Adjust dimensionality
         vector_store.add(embeddings)
