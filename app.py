@@ -9,6 +9,7 @@ from langchain.memory import ConversationBufferMemory
 import os
 import tempfile
 from PyPDF2 import PdfReader  # Import PdfReader from PyPDF2
+import requests  # Import the requests module
 
 def initialize_session_state():
     if 'history' not in st.session_state:
