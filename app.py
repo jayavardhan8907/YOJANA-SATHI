@@ -8,8 +8,8 @@ from langchain.vectorstores import FAISS
 from langchain.memory import ConversationBufferMemory
 import os
 import tempfile
-from PyPDF2 import PdfReader  # Import PdfReader from PyPDF2
-import requests  # Import requests for HTTP requests
+import requests
+from PyPDF2 import PdfReader
 
 def initialize_session_state():
     if 'history' not in st.session_state:
@@ -98,7 +98,7 @@ def main():
             os.remove(temp_file_path)
 
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=20)
-        text_chunks = text_splitter.split_documents(text)
+        text_chunks = text_splitter.split_texts(text)
 
         # Create embeddings
         embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", 
