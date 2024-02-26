@@ -30,15 +30,16 @@ def display_chat_history(chain):
     container = st.container()
 
     with container:
-        user_input = st.text_input("Question:", placeholder="Ask about your PDF", key='input')
-        submit_button = st.form_submit_button(label='Send')
+        with st.form(key='my_form', clear_on_submit=True):
+            user_input = st.text_input("Question:", placeholder="Ask about your PDF", key='input')
+            submit_button = st.form_submit_button(label='Send')
 
-        if submit_button and user_input:
-            with st.spinner('Generating response...'):
-                output = conversation_chat(user_input, chain, st.session_state['history'])
+            if submit_button and user_input:
+                with st.spinner('Generating response...'):
+                    output = conversation_chat(user_input, chain, st.session_state['history'])
 
-            st.session_state['past'].append(user_input)
-            st.session_state['generated'].append(output)
+                st.session_state['past'].append(user_input)
+                st.session_state['generated'].append(output)
 
     if st.session_state['generated']:
         with reply_container:
@@ -94,8 +95,6 @@ def main():
                                      model_kwargs={'device': 'cpu'})
 
     try:
-        # Create vector store directly using embeddings (no need for page_content)
-        vector_store = faiss.
         # Create vector store directly using embeddings (no need for page_content)
         vector_store = faiss.IndexFlatL2(len(embeddings[0]))  # Adjust dimensionality
         vector_store.add(embeddings)
