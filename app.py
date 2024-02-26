@@ -81,9 +81,7 @@ def main():
 
     # Fetch text from the PDF using pdfplumber
     with pdfplumber.open(pdf_bytes) as pdf:
-        text = ""
-        for page in pdf.pages:
-            text += page.extract_text()
+        text = "".join([page.extract_text() for page in pdf.pages])
 
     # Split text into chunks (adjust chunk size as needed)
     chunk_size = 10000
