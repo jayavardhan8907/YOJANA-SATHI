@@ -3,11 +3,11 @@ from streamlit_chat import message
 from langchain.chains import ConversationalRetrievalChain
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.llms import LlamaCpp
-from langchain.vectorstores import FAISS
 from langchain.memory import ConversationBufferMemory
 import requests
 import pdfplumber
 from io import BytesIO
+import faiss  # Import FAISS library
 
 def initialize_session_state():
     if 'history' not in st.session_state:
@@ -52,11 +52,11 @@ def create_conversational_chain(vector_store):
         streaming=True,
         model_path="mistral-7b-instruct-v0.1.Q4_K_M.gguf",
         temperature=0.75,
-        top_p=1, 
+        top_p=1,
         verbose=True,
         n_ctx=4096
     )
-    
+
     memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
     chain = ConversationalRetrievalChain.from_llm(llm=llm, chain_type='stuff',
@@ -67,7 +67,7 @@ def create_conversational_chain(vector_store):
 def main():
     # Initialize session state
     initialize_session_state()
-    
+
     # Set the title and logo
     st.title("YOJANA SATHI")
     st.image("flag.jpeg", width=100)  # Adjust width as needed
@@ -90,16 +90,22 @@ def main():
     text_chunks = [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
 
     # Create embeddings
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", 
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2",
                                        model_kwargs={'device': 'cpu'})
 
-    # Create vector store
-    vector_store = FAISS.from_documents(text_chunks, embedding=embeddings)
+    try:
+        # Create vector store directly using embeddings (no need for page_content)
+        vector_store = faiss.IndexFlatL2(len(embeddings[0]))  # Adjust dimensionality
+        vector_store.add(embeddings)
 
-    # Create the chain object
-    chain = create_conversational_chain(vector_store)
+        # Create the chain object
+        chain = create_conversational_chain(vector_store)
 
-    display_chat_history(chain)
+        display_chat_history(chain)
+
+    except Exception as e:
+        print(f"Error encountered: {e}")
+        # Handle the error appropriately (e.g., display an error message to the user)
 
 if __name__ == "__main__":
     main()
