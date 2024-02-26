@@ -8,7 +8,8 @@ from langchain.vectorstores import FAISS
 from langchain.memory import ConversationBufferMemory
 import os
 import tempfile
-import fitz  # Import fitz (PyMuPDF)
+from PyPDF2 import PdfReader  # Import PdfReader from PyPDF2
+import requests  # Import requests for HTTP requests
 
 def initialize_session_state():
     if 'history' not in st.session_state:
@@ -66,49 +67,52 @@ def create_conversational_chain(vector_store):
     return chain
 
 def main():
-    # Initialize session state
-    initialize_session_state()
-    
-    # Set the title and logo
-    st.title("YOJANA SATHI")
-    st.image("flag.jpeg", width=100)  # Adjust width as needed
+    try:
+        # Initialize session state
+        initialize_session_state()
+        
+        # Set the title and logo
+        st.title("YOJANA SATHI")
+        st.image("flag.jpeg", width=100)  # Adjust width as needed
 
-    # Initialize Streamlit
-    st.sidebar.title("Document Processing")
-    st.sidebar.markdown("Reading PDFs from the database folder in the GitHub repository.")
-    repo_url = "https://github.com/jayavardhan8907/YOJANA-SATHI/raw/main/database"
-    pdf_folder = "database"  # Folder containing PDF files
-    pdf_files = [file for file in os.listdir(pdf_folder) if file.endswith(".pdf")]
-    pdf_urls = [f"{repo_url}/{filename}" for filename in pdf_files]
+        # Initialize Streamlit
+        st.sidebar.title("Document Processing")
+        st.sidebar.markdown("Reading PDFs from the database folder in the GitHub repository.")
+        repo_url = "https://github.com/jayavardhan8907/YOJANA-SATHI/raw/main/database"
+        
+        # Fetch PDFs from the repository
+        pdf_urls = [f"{repo_url}/{filename}" for filename in os.listdir("database") if filename.endswith(".pdf")]
 
-    # Fetch PDFs from the repository
-    text = []
-    for pdf_url in pdf_urls:
-        response = requests.get(pdf_url)
-        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-            temp_file.write(response.content)
-            temp_file_path = temp_file.name
+        text = []
+        for pdf_url in pdf_urls:
+            response = requests.get(pdf_url)
+            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                temp_file.write(response.content)
+                temp_file_path = temp_file.name
 
-        doc = fitz.open(temp_file_path)
-        for page in doc:
-            text.append(page.get_text())
+            with open(temp_file_path, 'rb') as f:
+                reader = PdfReader(f)
+                for page in reader.pages:
+                    text.append(page.extract_text())
 
-        os.remove(temp_file_path)
+            os.remove(temp_file_path)
 
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=20)
-    text_chunks = text_splitter.split_documents(text)
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=20)
+        text_chunks = text_splitter.split_documents(text)
 
-    # Create embeddings
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", 
-                                       model_kwargs={'device': 'cpu'})
+        # Create embeddings
+        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", 
+                                           model_kwargs={'device': 'cpu'})
 
-    # Create vector store
-    vector_store = FAISS.from_documents(text_chunks, embedding=embeddings)
+        # Create vector store
+        vector_store = FAISS.from_documents(text_chunks, embedding=embeddings)
 
-    # Create the chain object
-    chain = create_conversational_chain(vector_store)
+        # Create the chain object
+        chain = create_conversational_chain(vector_store)
 
-    display_chat_history(chain)
+        display_chat_history(chain)
+    except Exception as e:
+        st.error(f"An error occurred: {e}")
 
 if __name__ == "__main__":
     main()
