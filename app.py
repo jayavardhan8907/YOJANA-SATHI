@@ -8,8 +8,7 @@ from langchain.vectorstores import FAISS
 from langchain.memory import ConversationBufferMemory
 import os
 import tempfile
-from PyPDF2 import PdfReader  # Import PdfReader from PyPDF2
-import requests  # Import the requests module
+import fitz  # Import fitz (PyMuPDF)
 
 def initialize_session_state():
     if 'history' not in st.session_state:
@@ -90,13 +89,9 @@ def main():
             temp_file.write(response.content)
             temp_file_path = temp_file.name
 
-        with open(temp_file_path, 'rb') as f:
-            reader = PdfReader(f)
-            for page in reader.pages:
-                try:
-                    text.append(page.extract_text())
-                except Exception as e:
-                    print(f"Error extracting text from PDF page: {e}")
+        doc = fitz.open(temp_file_path)
+        for page in doc:
+            text.append(page.get_text())
 
         os.remove(temp_file_path)
 
