@@ -3,13 +3,12 @@ from streamlit_chat import message
 from langchain.chains import ConversationalRetrievalChain
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.llms import LlamaCpp
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.memory import ConversationBufferMemory
 import os
 import tempfile
 import requests
-from PyPDF2 import PdfReader
+import fitz  # PyMuPDF library
 
 def initialize_session_state():
     if 'history' not in st.session_state:
@@ -90,22 +89,20 @@ def main():
                 temp_file.write(response.content)
                 temp_file_path = temp_file.name
 
-            with open(temp_file_path, 'rb') as f:
-                reader = PdfReader(f)
-                for page_num in range(len(reader.pages)):
-                    text.append(reader.pages[page_num].extract_text())
+            # Open the PDF file using PyMuPDF
+            with fitz.open(temp_file_path) as pdf_file:
+                for page_num in range(len(pdf_file)):
+                    page = pdf_file.load_page(page_num)
+                    text.append(page.get_text())
 
             os.remove(temp_file_path)
-
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=20)
-        text_chunks = text_splitter.split_documents(text)
 
         # Create embeddings
         embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", 
                                            model_kwargs={'device': 'cpu'})
 
         # Create vector store
-        vector_store = FAISS.from_documents(text_chunks, embedding=embeddings)
+        vector_store = FAISS.from_texts(text, embedding=embeddings)
 
         # Create the chain object
         chain = create_conversational_chain(vector_store)
