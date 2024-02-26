@@ -6,10 +6,9 @@ from langchain.llms import LlamaCpp
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.memory import ConversationBufferMemory
-from langchain.document_loaders import PyPDFLoader
 import os
 import tempfile
-import PyPDF2  # Import PyPDF2
+from PyPDF2 import PdfReader  # Import PdfReader from PyPDF2
 
 def initialize_session_state():
     if 'history' not in st.session_state:
@@ -76,38 +75,40 @@ def main():
 
     # Initialize Streamlit
     st.sidebar.title("Document Processing")
-    uploaded_files = st.sidebar.file_uploader("Upload files", accept_multiple_files=True)
+    st.sidebar.markdown("Reading PDFs from the database folder in the GitHub repository.")
+    repo_url = "https://github.com/jayavardhan8907/YOJANA-SATHI/raw/main/database"
+    pdf_files = ["file1.pdf", "file2.pdf"]  # List of PDF files to read
+    pdf_urls = [f"{repo_url}/{filename}" for filename in pdf_files]
 
-    if uploaded_files:
-        text = []
-        for file in uploaded_files:
-            file_extension = os.path.splitext(file.name)[1]
-            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-                temp_file.write(file.read())
-                temp_file_path = temp_file.name
+    # Fetch PDFs from the repository
+    text = []
+    for pdf_url in pdf_urls:
+        response = requests.get(pdf_url)
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            temp_file.write(response.content)
+            temp_file_path = temp_file.name
 
-            if file_extension == ".pdf":
-                with open(temp_file_path, 'rb') as f:
-                    reader = PyPDF2.PdfFileReader(f)
-                    for page_num in range(reader.numPages):
-                        text.append(reader.getPage(page_num).extractText())
+        with open(temp_file_path, 'rb') as f:
+            reader = PdfReader(f)
+            for page in reader.pages:
+                text.append(page.extract_text())
 
-                os.remove(temp_file_path)
+        os.remove(temp_file_path)
 
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=20)
-        text_chunks = text_splitter.split_documents(text)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=20)
+    text_chunks = text_splitter.split_documents(text)
 
-        # Create embeddings
-        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", 
-                                           model_kwargs={'device': 'cpu'})
+    # Create embeddings
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", 
+                                       model_kwargs={'device': 'cpu'})
 
-        # Create vector store
-        vector_store = FAISS.from_documents(text_chunks, embedding=embeddings)
+    # Create vector store
+    vector_store = FAISS.from_documents(text_chunks, embedding=embeddings)
 
-        # Create the chain object
-        chain = create_conversational_chain(vector_store)
+    # Create the chain object
+    chain = create_conversational_chain(vector_store)
 
-        display_chat_history(chain)
+    display_chat_history(chain)
 
 if __name__ == "__main__":
     main()
