@@ -3,22 +3,25 @@ from streamlit_chat import message
 from langchain.chains import ConversationalRetrievalChain
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.llms import LlamaCpp
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.memory import ConversationBufferMemory
-import requests
-import pdfplumber
-from io import BytesIO
-import faiss  # Explicitly import faiss
+from langchain.document_loaders import PyPDFLoader
+import os
+import tempfile
+
+
+
 
 def initialize_session_state():
     if 'history' not in st.session_state:
         st.session_state['history'] = []
 
     if 'generated' not in st.session_state:
-        st.session_state['generated'] = ["Hello! Ask me anything about "]
+        st.session_state['generated'] = ["Hello! Ask me anything about 🤗"]
 
     if 'past' not in st.session_state:
-        st.session_state['past'] = ["Hey! "]
+        st.session_state['past'] = ["Hey! 👋"]
 
 def conversation_chat(query, chain, history):
     result = chain({"question": query, "chat_history": history})
@@ -26,7 +29,6 @@ def conversation_chat(query, chain, history):
     return result["answer"]
 
 def display_chat_history(chain):
-    st.write("Chat History:")
     reply_container = st.container()
     container = st.container()
 
@@ -44,20 +46,6 @@ def display_chat_history(chain):
 
     if st.session_state['generated']:
         with reply_container:
-            st.write("Responses:")
-            for i in range(len(st.session_state['generated'])):
-                message(st.session_state["past"][i], is_user=True, key=str(i) + '_user', avatar_style="thumbs")
-                message(st.session_state["generated"][i], key=str(i), avatar_style="fun-emoji")
-
-    if st.session_state['generated']:
-        with reply_container:
-            for i in range(len(st.session_state['generated'])):
-                message(st.session_state["past"][i], is_user=True, key=str(i) + '_user', avatar_style="thumbs")
-                message(st.session_state["generated"][i], key=str(i), avatar_style="fun-emoji")
-
-
-    if st.session_state['generated']:
-        with reply_container:
             for i in range(len(st.session_state['generated'])):
                 message(st.session_state["past"][i], is_user=True, key=str(i) + '_user', avatar_style="thumbs")
                 message(st.session_state["generated"][i], key=str(i), avatar_style="fun-emoji")
@@ -65,63 +53,61 @@ def display_chat_history(chain):
 def create_conversational_chain(vector_store):
     # Create llm
     llm = LlamaCpp(
-        streaming=True,
-        model_path="mistral-7b-instruct-v0.1.Q4_K_M.gguf",
-        temperature=0.75,
-        top_p=1, 
-        verbose=True,
-        n_ctx=4096
-    )
-
+    streaming = True,
+    model_path="mistral-7b-instruct-v0.1.Q4_K_M.gguf",
+    temperature=0.75,
+    top_p=1, 
+    verbose=True,
+    n_ctx=4096
+)
+    
     memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
     chain = ConversationalRetrievalChain.from_llm(llm=llm, chain_type='stuff',
-                                                retriever=vector_store.as_retriever(search_kwargs={"k": 2}),
-                                                memory=memory)
+                                                 retriever=vector_store.as_retriever(search_kwargs={"k": 2}),
+                                                 memory=memory)
     return chain
 
 def main():
     # Initialize session state
     initialize_session_state()
+    st.title("Multi-PDF ChatBot using Mistral-7B-Instruct :books:")
+    # Initialize Streamlit
+    st.sidebar.title("Document Processing")
+    uploaded_files = st.sidebar.file_uploader("Upload files", accept_multiple_files=True)
 
-    # Set the title and logo
-    st.title("YOJANA SATHI")
-    st.image("flag.jpeg", width=100)  # Adjust width as needed
 
-    # Direct link to the PDF file
-    pdf_url = "https://github.com/jayavardhan8907/YOJANA-SATHI/raw/main/database/AP.pdf"
+    if uploaded_files:
+        text = []
+        for file in uploaded_files:
+            file_extension = os.path.splitext(file.name)[1]
+            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                temp_file.write(file.read())
+                temp_file_path = temp_file.name
 
-    # Download the PDF file
-    response = requests.get(pdf_url)
-    pdf_bytes = BytesIO(response.content)
+            loader = None
+            if file_extension == ".pdf":
+                loader = PyPDFLoader(temp_file_path)
 
-    # Fetch text from the PDF using pdfplumber
-    with pdfplumber.open(pdf_bytes) as pdf:
-        text = ""
-        for page in pdf.pages:
-            text += page.extract_text()
+            if loader:
+                text.extend(loader.load())
+                os.remove(temp_file_path)
 
-    # Split text into chunks (adjust chunk size as needed)
-    chunk_size = 10000
-    text_chunks = [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=20)
+        text_chunks = text_splitter.split_documents(text)
 
-    # Create embeddings
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", 
-                                     model_kwargs={'device': 'cpu'})
+        # Create embeddings
+        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", 
+                                           model_kwargs={'device': 'cpu'})
 
-    try:
-        # Create vector store directly using embeddings (no need for page_content)
-        vector_store = faiss.IndexFlatL2(len(embeddings[0]))  # Adjust dimensionality
-        vector_store.add(embeddings)
+        # Create vector store
+        vector_store = FAISS.from_documents(text_chunks, embedding=embeddings)
 
         # Create the chain object
         chain = create_conversational_chain(vector_store)
 
+        
         display_chat_history(chain)
-
-    except Exception as e:
-        print(f"Error encountered: {e}")
-        # Handle the error appropriately (e.g., display an error message to the user)
 
 if __name__ == "__main__":
     main()
