@@ -10,6 +10,9 @@ from langchain.document_loaders import PyPDFLoader
 import os
 import tempfile
 
+# GitHub repository URL where PDF files are stored
+github_repo_url = "https://github.com/jayavardhan8907/YOJANA-SATH"
+
 def initialize_session_state():
     if 'history' not in st.session_state:
         st.session_state['history'] = []
@@ -19,6 +22,11 @@ def initialize_session_state():
 
     if 'past' not in st.session_state:
         st.session_state['past'] = ["Hey! 👋"]
+
+def load_pdf_texts_from_github(repo_url):
+    pdf_texts = []
+    # Code to fetch PDF texts from GitHub repository
+    return pdf_texts
 
 def conversation_chat(query, chain, history):
     result = chain({"question": query, "chat_history": history})
@@ -71,24 +79,16 @@ def main():
     
     # Set the title and logo
     st.title("YOJANA SATHI")
-    st.image("flag.jpeg", width=50)  # Adjust width as needed
-
-    # Default folder path containing PDFs
-    default_folder_path = r'C:\Users\vardh\OneDrive\Documents\GitHub\MultiPDFchatMistral-7B\database'
+    st.image("flag.jpeg", width=100)  # Adjust width as needed
 
     # Initialize Streamlit
     st.sidebar.title("Document Processing")
 
-    # Process PDFs from the default folder path
-    text = []
-    for filename in os.listdir(default_folder_path):
-        file_path = os.path.join(default_folder_path, filename)
-        if filename.endswith('.pdf'):
-            loader = PyPDFLoader(file_path)
-            text.extend(loader.load())
+    # Load PDF texts from GitHub repository
+    pdf_texts = load_pdf_texts_from_github(github_repo_url)
 
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=20)
-    text_chunks = text_splitter.split_documents(text)
+    text_chunks = text_splitter.split_documents(pdf_texts)
 
     # Create embeddings
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", 
