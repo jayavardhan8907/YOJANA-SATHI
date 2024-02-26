@@ -9,7 +9,7 @@ from langchain.memory import ConversationBufferMemory
 from langchain.document_loaders import PyPDFLoader
 import os
 import tempfile
-import fitz  # Import PyMuPDF
+import PyPDF2  # Import PyPDF2
 
 def initialize_session_state():
     if 'history' not in st.session_state:
@@ -87,9 +87,10 @@ def main():
                 temp_file_path = temp_file.name
 
             if file_extension == ".pdf":
-                doc = fitz.open(temp_file_path)
-                for page in doc:
-                    text.append(page.get_text())
+                with open(temp_file_path, 'rb') as f:
+                    reader = PyPDF2.PdfFileReader(f)
+                    for page_num in range(reader.numPages):
+                        text.append(reader.getPage(page_num).extractText())
 
                 os.remove(temp_file_path)
 
