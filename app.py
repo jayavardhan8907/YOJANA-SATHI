@@ -81,14 +81,14 @@ def main():
 
     # Fetch text from the PDF using pdfplumber
     with pdfplumber.open(pdf_bytes) as pdf:
-        text = [page.extract_text() for page in pdf.pages]
+        text_chunks = [page.extract_text() for page in pdf.pages]
 
     # Create embeddings
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", 
                                        model_kwargs={'device': 'cpu'})
 
     # Create vector store
-    vector_store = FAISS.from_documents(text, embedding=embeddings)
+    vector_store = FAISS.from_documents(text_chunks, embedding=embeddings)
 
     # Create the chain object
     chain = create_conversational_chain(vector_store)
