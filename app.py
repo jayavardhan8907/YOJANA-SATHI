@@ -76,7 +76,7 @@ def main():
     st.sidebar.title("Document Processing")
     st.sidebar.markdown("Reading PDFs from the database folder in the GitHub repository.")
     repo_url = "https://github.com/jayavardhan8907/YOJANA-SATHI/raw/main/database"
-    pdf_files = ["file1.pdf", "file2.pdf"]  # List of PDF files to read
+    pdf_files = ["AP.pdf"]  # List of PDF files to read
     pdf_urls = [f"{repo_url}/{filename}" for filename in pdf_files]
 
     # Fetch PDFs from the repository
