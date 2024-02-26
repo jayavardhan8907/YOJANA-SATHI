@@ -10,9 +10,6 @@ from langchain.document_loaders import PyPDFLoader
 import os
 import tempfile
 
-
-
-
 def initialize_session_state():
     if 'history' not in st.session_state:
         st.session_state['history'] = []
@@ -53,13 +50,13 @@ def display_chat_history(chain):
 def create_conversational_chain(vector_store):
     # Create llm
     llm = LlamaCpp(
-    streaming = True,
-    model_path="mistral-7b-instruct-v0.1.Q4_K_M.gguf",
-    temperature=0.75,
-    top_p=1, 
-    verbose=True,
-    n_ctx=4096
-)
+        streaming=True,
+        model_path="mistral-7b-instruct-v0.1.Q4_K_M.gguf",
+        temperature=0.75,
+        top_p=1, 
+        verbose=True,
+        n_ctx=4096
+    )
     
     memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
@@ -67,51 +64,43 @@ def create_conversational_chain(vector_store):
                                                  retriever=vector_store.as_retriever(search_kwargs={"k": 2}),
                                                  memory=memory)
     return chain
-import os
 
 def main():
     # Initialize session state
     initialize_session_state()
+    
+    # Set the title and logo
     st.title("YOJANA SATHI")
-    st.image("flag.jpeg", width=75)  # Adjust width as needed
+    st.image("flag.jpeg", width=50)  # Adjust width as needed
 
+    # Default folder path containing PDFs
+    default_folder_path = r'C:\Users\vardh\OneDrive\Documents\GitHub\MultiPDFchatMistral-7B\database'
 
     # Initialize Streamlit
     st.sidebar.title("Document Processing")
-    uploaded_files = st.sidebar.file_uploader("Upload files", accept_multiple_files=True)
 
+    # Process PDFs from the default folder path
+    text = []
+    for filename in os.listdir(default_folder_path):
+        file_path = os.path.join(default_folder_path, filename)
+        if filename.endswith('.pdf'):
+            loader = PyPDFLoader(file_path)
+            text.extend(loader.load())
 
-    if uploaded_files:
-        text = []
-        for file in uploaded_files:
-            file_extension = os.path.splitext(file.name)[1]
-            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-                temp_file.write(file.read())
-                temp_file_path = temp_file.name
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=20)
+    text_chunks = text_splitter.split_documents(text)
 
-            loader = None
-            if file_extension == ".pdf":
-                loader = PyPDFLoader(temp_file_path)
+    # Create embeddings
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", 
+                                       model_kwargs={'device': 'cpu'})
 
-            if loader:
-                text.extend(loader.load())
-                os.remove(temp_file_path)
+    # Create vector store
+    vector_store = FAISS.from_documents(text_chunks, embedding=embeddings)
 
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=20)
-        text_chunks = text_splitter.split_documents(text)
+    # Create the chain object
+    chain = create_conversational_chain(vector_store)
 
-        # Create embeddings
-        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", 
-                                           model_kwargs={'device': 'cpu'})
-
-        # Create vector store
-        vector_store = FAISS.from_documents(text_chunks, embedding=embeddings)
-
-        # Create the chain object
-        chain = create_conversational_chain(vector_store)
-
-        
-        display_chat_history(chain)
+    display_chat_history(chain)
 
 if __name__ == "__main__":
     main()
