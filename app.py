@@ -87,7 +87,7 @@ def main():
 
     # Split text into chunks (adjust chunk size as needed)
     chunk_size = 10000
-    text_chunks = [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
+    text_chunks = [pdfplumber.load(BytesIO(chunk.encode())) for chunk in [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]]
 
     # Create embeddings
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", 
