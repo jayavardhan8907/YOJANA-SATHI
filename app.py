@@ -93,7 +93,10 @@ def main():
         with open(temp_file_path, 'rb') as f:
             reader = PdfReader(f)
             for page in reader.pages:
-                text.append(page.extract_text())
+                try:
+                    text.append(page.extract_text())
+                except Exception as e:
+                    print(f"Error extracting text from PDF page: {e}")
 
         os.remove(temp_file_path)
 
