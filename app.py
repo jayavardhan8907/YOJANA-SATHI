@@ -41,6 +41,14 @@ def display_chat_history(chain):
                 st.session_state['past'].append(user_input)
                 st.session_state['generated'].append(output)
 
+    # Display chat history only if generated responses exist
+    if st.session_state['generated']:
+        with reply_container:
+            for i in range(len(st.session_state['generated'])):
+                message(st.session_state["past"][i], is_user=True, key=str(i) + '_user', avatar_style="thumbs")
+                message(st.session_state["generated"][i], key=str(i), avatar_style="fun-emoji")
+
+
     if st.session_state['generated']:
         with reply_container:
             for i in range(len(st.session_state['generated'])):
