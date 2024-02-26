@@ -5,7 +5,9 @@ from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.llms import LlamaCpp
 from langchain.vectorstores import FAISS
 from langchain.memory import ConversationBufferMemory
+import requests
 import pdfplumber
+from io import BytesIO
 
 def initialize_session_state():
     if 'history' not in st.session_state:
@@ -71,10 +73,14 @@ def main():
     st.image("flag.jpeg", width=100)  # Adjust width as needed
 
     # Direct link to the PDF file
-    pdf_url = "https://github.com/jayavardhan8907/YOJANA-SATHI/blob/main/database/AP.pdf"
+    pdf_url = "https://github.com/jayavardhan8907/YOJANA-SATHI/raw/main/database/AP.pdf"
+
+    # Download the PDF file
+    response = requests.get(pdf_url)
+    pdf_bytes = BytesIO(response.content)
 
     # Fetch text from the PDF using pdfplumber
-    with pdfplumber.open(pdf_url) as pdf:
+    with pdfplumber.open(pdf_bytes) as pdf:
         text = [page.extract_text() for page in pdf.pages]
 
     # Create embeddings
