@@ -8,7 +8,7 @@ from langchain.vectorstores import FAISS
 from langchain.memory import ConversationBufferMemory
 import os
 import tempfile
-from PyPDF2 import PdfReader  # Import PdfReader from PyPDF2
+from PyPDF2 import PdfFileReader  # Import PdfFileReader from PyPDF2
 import requests  # Import requests for HTTP requests
 
 def initialize_session_state():
@@ -91,9 +91,9 @@ def main():
                 temp_file_path = temp_file.name
 
             with open(temp_file_path, 'rb') as f:
-                reader = PdfReader(f)
-                for page in reader.pages:
-                    text.append(page.extract_text())
+                reader = PdfFileReader(f)
+                for page_num in range(reader.numPages):
+                    text.append(reader.getPage(page_num).extractText())
 
             os.remove(temp_file_path)
 
