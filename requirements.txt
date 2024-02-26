@@ -13,3 +13,4 @@ pyPDF2
 requests
 fitz
 frontend
+pdfplumber
