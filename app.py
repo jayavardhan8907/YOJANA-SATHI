@@ -81,7 +81,13 @@ def main():
 
     # Fetch text from the PDF using pdfplumber
     with pdfplumber.open(pdf_bytes) as pdf:
-        text_chunks = [page.extract_text() for page in pdf.pages]
+        text = ""
+        for page in pdf.pages:
+            text += page.extract_text()
+
+    # Split text into chunks (adjust chunk size as needed)
+    chunk_size = 10000
+    text_chunks = [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
 
     # Create embeddings
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", 
