@@ -7,8 +7,7 @@ from langchain.vectorstores import FAISS
 from langchain.memory import ConversationBufferMemory
 import os
 import tempfile
-import requests
-import fitz  # PyMuPDF library
+import pdfplumber
 
 def initialize_session_state():
     if 'history' not in st.session_state:
@@ -66,50 +65,39 @@ def create_conversational_chain(vector_store):
     return chain
 
 def main():
-    try:
-        # Initialize session state
-        initialize_session_state()
-        
-        # Set the title and logo
-        st.title("YOJANA SATHI")
-        st.image("flag.jpeg", width=100)  # Adjust width as needed
+    # Initialize session state
+    initialize_session_state()
+    
+    # Set the title and logo
+    st.title("YOJANA SATHI")
+    st.image("flag.jpeg", width=100)  # Adjust width as needed
 
-        # Initialize Streamlit
-        st.sidebar.title("Document Processing")
-        st.sidebar.markdown("Reading PDFs from the database folder in the GitHub repository.")
-        repo_url = "https://github.com/jayavardhan8907/YOJANA-SATHI/raw/main/database"
-        
-        # Fetch PDFs from the repository
-        pdf_urls = [f"{repo_url}/{filename}" for filename in os.listdir("database") if filename.endswith(".pdf")]
+    # Initialize Streamlit
+    st.sidebar.title("Document Processing")
+    st.sidebar.markdown("Reading PDFs from the database folder in the GitHub repository.")
+    repo_url = "https://github.com/jayavardhan8907/YOJANA-SATHI/raw/main/database"
+    pdf_files = ["file1.pdf", "file2.pdf"]  # List of PDF files to read
+    pdf_urls = [f"{repo_url}/{filename}" for filename in pdf_files]
 
-        text = []
-        for pdf_url in pdf_urls:
-            response = requests.get(pdf_url)
-            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-                temp_file.write(response.content)
-                temp_file_path = temp_file.name
+    # Fetch PDFs from the repository
+    text = []
+    for pdf_url in pdf_urls:
+        with pdfplumber.open(pdf_url) as pdf:
+            for page in pdf.pages:
+                text.append(page.extract_text())
 
-            # Open the PDF file using PyMuPDF
-            with fitz.open(temp_file_path) as pdf_file:
-                for page_num in range(len(pdf_file)):
-                    page = pdf_file.load_page(page_num)
-                    text.append(page.get_text())
+    # Create embeddings
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", 
+                                       model_kwargs={'device': 'cpu'})
 
-            os.remove(temp_file_path)
+    # Create vector store
+    vector_store = FAISS.from_documents(text, embedding=embeddings)
 
-        # Create embeddings
-        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", 
-                                           model_kwargs={'device': 'cpu'})
+    # Create the chain object
+    chain = create_conversational_chain(vector_store)
 
-        # Create vector store
-        vector_store = FAISS.from_texts(text, embedding=embeddings)
-
-        # Create the chain object
-        chain = create_conversational_chain(vector_store)
-
-        display_chat_history(chain)
-    except Exception as e:
-        st.error(f"An error occurred: {e}")
+    # Display chat history
+    display_chat_history(chain)
 
 if __name__ == "__main__":
     main()
