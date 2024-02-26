@@ -9,7 +9,7 @@ from langchain.memory import ConversationBufferMemory
 from langchain.document_loaders import PyPDFLoader
 import os
 import tempfile
-import PyPDF2
+import fitz  # Import PyMuPDF
 
 def initialize_session_state():
     if 'history' not in st.session_state:
@@ -21,18 +21,32 @@ def initialize_session_state():
     if 'past' not in st.session_state:
         st.session_state['past'] = ["Hey! 👋"]
 
-def load_pdf_texts_from_folder(folder_path):
-    pdf_texts = []
-    for root, dirs, files in os.walk(folder_path):
-        for file in files:
-            if file.endswith(".pdf"):
-                file_path = os.path.join(root, file)
-                with open(file_path, "rb") as f:
-                    reader = PyPDF2.PdfFileReader(f)
-                    for page_num in range(reader.numPages):
-                        page = reader.getPage(page_num)
-                        pdf_texts.append(page.extractText())
-    return pdf_texts
+def conversation_chat(query, chain, history):
+    result = chain({"question": query, "chat_history": history})
+    history.append((query, result["answer"]))
+    return result["answer"]
+
+def display_chat_history(chain):
+    reply_container = st.container()
+    container = st.container()
+
+    with container:
+        with st.form(key='my_form', clear_on_submit=True):
+            user_input = st.text_input("Question:", placeholder="Ask about your PDF", key='input')
+            submit_button = st.form_submit_button(label='Send')
+
+        if submit_button and user_input:
+            with st.spinner('Generating response...'):
+                output = conversation_chat(user_input, chain, st.session_state['history'])
+
+            st.session_state['past'].append(user_input)
+            st.session_state['generated'].append(output)
+
+    if st.session_state['generated']:
+        with reply_container:
+            for i in range(len(st.session_state['generated'])):
+                message(st.session_state["past"][i], is_user=True, key=str(i) + '_user', avatar_style="thumbs")
+                message(st.session_state["generated"][i], key=str(i), avatar_style="fun-emoji")
 
 def create_conversational_chain(vector_store):
     # Create llm
@@ -62,30 +76,37 @@ def main():
 
     # Initialize Streamlit
     st.sidebar.title("Document Processing")
-    folder_path = 'C:/Users/vardh/OneDrive/Documents/GitHub/MultiPDFchatMistral-7B/database'
+    uploaded_files = st.sidebar.file_uploader("Upload files", accept_multiple_files=True)
 
-    # Check if the specified folder path exists
-    if not os.path.exists(folder_path):
-        st.error("The specified folder path does not exist.")
-        return
+    if uploaded_files:
+        text = []
+        for file in uploaded_files:
+            file_extension = os.path.splitext(file.name)[1]
+            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                temp_file.write(file.read())
+                temp_file_path = temp_file.name
 
-    # Load PDF texts from the specified folder
-    pdf_texts = load_pdf_texts_from_folder(folder_path)
+            if file_extension == ".pdf":
+                doc = fitz.open(temp_file_path)
+                for page in doc:
+                    text.append(page.get_text())
 
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=20)
-    text_chunks = text_splitter.split_documents(pdf_texts)
+                os.remove(temp_file_path)
 
-    # Create embeddings
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", 
-                                       model_kwargs={'device': 'cpu'})
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=20)
+        text_chunks = text_splitter.split_documents(text)
 
-    # Create vector store
-    vector_store = FAISS.from_documents(text_chunks, embedding=embeddings)
+        # Create embeddings
+        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", 
+                                           model_kwargs={'device': 'cpu'})
 
-    # Create the chain object
-    chain = create_conversational_chain(vector_store)
+        # Create vector store
+        vector_store = FAISS.from_documents(text_chunks, embedding=embeddings)
 
-    display_chat_history(chain)
+        # Create the chain object
+        chain = create_conversational_chain(vector_store)
+
+        display_chat_history(chain)
 
 if __name__ == "__main__":
     main()
