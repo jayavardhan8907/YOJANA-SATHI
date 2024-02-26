@@ -11,5 +11,5 @@ pypdf
 llama-cpp-python
 pyPDF2
 requests
-
+fitz
 
