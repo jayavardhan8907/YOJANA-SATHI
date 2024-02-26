@@ -5,8 +5,6 @@ from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.llms import LlamaCpp
 from langchain.vectorstores import FAISS
 from langchain.memory import ConversationBufferMemory
-import os
-import tempfile
 import pdfplumber
 
 def initialize_session_state():
@@ -72,19 +70,12 @@ def main():
     st.title("YOJANA SATHI")
     st.image("flag.jpeg", width=100)  # Adjust width as needed
 
-    # Initialize Streamlit
-    st.sidebar.title("Document Processing")
-    st.sidebar.markdown("Reading PDFs from the database folder in the GitHub repository.")
-    repo_url = "https://github.com/jayavardhan8907/YOJANA-SATHI/raw/main/database"
-    pdf_files = ["AP.pdf"]  # List of PDF files to read
-    pdf_urls = [f"{repo_url}/{filename}" for filename in pdf_files]
+    # Direct link to the PDF file
+    pdf_url = "https://github.com/jayavardhan8907/YOJANA-SATHI/blob/main/database/AP.pdf"
 
-    # Fetch PDFs from the repository
-    text = []
-    for pdf_url in pdf_urls:
-        with pdfplumber.open(pdf_url) as pdf:
-            for page in pdf.pages:
-                text.append(page.extract_text())
+    # Fetch text from the PDF using pdfplumber
+    with pdfplumber.open(pdf_url) as pdf:
+        text = [page.extract_text() for page in pdf.pages]
 
     # Create embeddings
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", 
@@ -96,7 +87,6 @@ def main():
     # Create the chain object
     chain = create_conversational_chain(vector_store)
 
-    # Display chat history
     display_chat_history(chain)
 
 if __name__ == "__main__":
