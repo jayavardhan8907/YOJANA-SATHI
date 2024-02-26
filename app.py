@@ -81,11 +81,11 @@ def main():
     # Fetch text from the PDF
     pdf_text = ""
     with pdf_bytes as pdf_file:
-        pdf_text = pdf_file.read().decode("utf-8")
+        pdf_text = pdf_file.read().decode("latin-1")  # Change encoding to latin-1
 
-    # Split text into chunks
+    # Split text into chunks (adjust chunk size as needed)
     chunk_size = 10000
-    text_chunks = [pdf_text[i:i + chunk_size] for i in range(0, len(pdf_text), chunk_size)]
+    text_chunks = [pdf_text[i:i+chunk_size] for i in range(0, len(pdf_text), chunk_size)]
 
     # Create embeddings
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", 
