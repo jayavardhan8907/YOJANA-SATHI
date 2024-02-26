@@ -6,6 +6,7 @@ from langchain.llms import LlamaCpp
 from langchain.vectorstores import FAISS
 from langchain.memory import ConversationBufferMemory
 import requests
+import pdfplumber
 from io import BytesIO
 
 def initialize_session_state():
@@ -78,14 +79,15 @@ def main():
     response = requests.get(pdf_url)
     pdf_bytes = BytesIO(response.content)
 
-    # Fetch text from the PDF
-    pdf_text = ""
-    with pdf_bytes as pdf_file:
-        pdf_text = pdf_file.read().decode("latin-1")  # Change encoding to latin-1
+    # Fetch text from the PDF using pdfplumber
+    with pdfplumber.open(pdf_bytes) as pdf:
+        text = ""
+        for page in pdf.pages:
+            text += page.extract_text()
 
     # Split text into chunks (adjust chunk size as needed)
     chunk_size = 10000
-    text_chunks = [pdf_text[i:i+chunk_size] for i in range(0, len(pdf_text), chunk_size)]
+    text_chunks = [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
 
     # Create embeddings
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", 
