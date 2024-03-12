@@ -20,6 +20,10 @@ def initialize_session_state():
     if 'past' not in st.session_state:
         st.session_state['past'] = ["Hey! 👋"]
 
+    # Track whether chat history has been displayed
+    if 'chat_history_displayed' not in st.session_state:
+        st.session_state['chat_history_displayed'] = False
+
 def conversation_chat(query, chain, history):
     result = chain({"question": query, "chat_history": history})
     history.append((query, result["answer"]))
@@ -41,11 +45,23 @@ def display_chat_history(chain):
             st.session_state['past'].append(user_input)
             st.session_state['generated'].append(output)
 
+            # Set chat history displayed to False to show it next time
+            st.session_state['chat_history_displayed'] = False
+
     if st.session_state['generated']:
         with reply_container:
-            for i in range(len(st.session_state['generated'])):
-                message(st.session_state["past"][i], is_user=True, key=str(i) + '_user', avatar_style="thumbs")
-                message(st.session_state["generated"][i], key=str(i), avatar_style="fun-emoji")
+            if not st.session_state['chat_history_displayed']:
+                # Display chat history if it hasn't been displayed yet
+                for i in range(len(st.session_state['generated'])):
+                    messages = [{"role": "user", "content": st.session_state["past"][i]},
+                                {"role": "chatbot", "content": st.session_state["generated"][i]}]
+                    for message in messages:
+                        avatar = "logo2.png" if message["role"] == "chatbot" else None
+                        with st.chat_message(message["role"], avatar=avatar):
+                            st.markdown(message["content"])
+
+                # Set chat history displayed to True
+                st.session_state['chat_history_displayed'] = True
 
 def create_conversational_chain(vector_store):
     # Create llm
@@ -77,7 +93,7 @@ def main():
     default_folder_path = r'C:\Users\vardh\OneDrive\Documents\GitHub\MultiPDFchatMistral-7B\database'
 
     # Initialize Streamlit
-    st.sidebar.title("Document Processing")
+    #st.sidebar.title("Document Processing")
 
     # Process PDFs from the default folder path
     text = []
